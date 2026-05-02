@@ -5,7 +5,19 @@ import { NextResponse } from 'next/server';
 export async function POST(request) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Check for explicit Authorization header first (fallback for Vercel edge cases where cookies drop)
+    const authHeader = request.headers.get('Authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : null;
+    
+    let user;
+    if (token) {
+      const { data } = await supabase.auth.getUser(token);
+      user = data.user;
+    } else {
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+    }
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

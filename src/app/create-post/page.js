@@ -1,23 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabaseClient';
 
 export default function CreatePost() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
   const router = useRouter();
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+      } else {
+        const { data } = await supabase.from('Users').select('role').eq('id', user.id).single();
+        if (data && (data.role === 'Author' || data.role === 'Admin')) {
+          setAuthChecking(false);
+        } else {
+          alert('You must be an Author or Admin to create posts.');
+          router.push('/');
+        }
+      }
+    }
+    checkAuth();
+  }, [router, supabase]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/posts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` })
+        },
         body: JSON.stringify({ title, body, image_url: imageUrl })
       });
 
@@ -35,6 +60,8 @@ export default function CreatePost() {
       setLoading(false);
     }
   };
+
+  if (authChecking) return <p>Checking authorization...</p>;
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>

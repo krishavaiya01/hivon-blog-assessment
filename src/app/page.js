@@ -9,6 +9,7 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [canCreate, setCanCreate] = useState(false);
   const postsPerPage = 5;
 
   const supabase = createClient();
@@ -43,13 +44,28 @@ export default function Home() {
     fetchPosts();
   }, [page, search]);
 
+  useEffect(() => {
+    async function checkUserRole() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData } = await supabase.from('Users').select('role').eq('id', user.id).single();
+        if (userData && (userData.role === 'Author' || userData.role === 'Admin')) {
+          setCanCreate(true);
+        }
+      }
+    }
+    checkUserRole();
+  }, [supabase]);
+
   return (
     <div>
       <div className="flex justify-between items-center" style={{ marginBottom: '2rem' }}>
         <h1>Latest Insights</h1>
-        <div>
-          <a href="/create-post" className="btn btn-primary">Create Post</a>
-        </div>
+        {canCreate && (
+          <div>
+            <a href="/create-post" className="btn btn-primary">Create Post</a>
+          </div>
+        )}
       </div>
 
       <div style={{ marginBottom: '2rem' }}>

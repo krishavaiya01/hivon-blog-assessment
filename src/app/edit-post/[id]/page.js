@@ -11,26 +11,45 @@ export default function EditPost({ params: paramsPromise }) {
   const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [authChecking, setAuthChecking] = useState(true);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
-    async function fetchPost() {
-      const { data, error } = await supabase
+    async function checkAuth() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data: userData } = await supabase.from('Users').select('role').eq('id', user.id).single();
+      
+      const { data: postData } = await supabase
         .from('Posts')
         .select('*')
         .eq('id', params.id)
         .single();
       
-      if (data) {
-        setTitle(data.title);
-        setBody(data.body);
-        setImageUrl(data.image_url || '');
+      if (postData) {
+        if (!userData || (userData.role !== 'Admin' && (userData.role !== 'Author' || postData.author_id !== user.id))) {
+          alert('You do not have permission to edit this post.');
+          router.push('/');
+          return;
+        }
+        setTitle(postData.title);
+        setBody(postData.body);
+        setImageUrl(postData.image_url || '');
+      } else {
+        alert('Post not found');
+        router.push('/');
+        return;
       }
+      setAuthChecking(false);
       setLoadingData(false);
     }
-    fetchPost();
-  }, [params.id]);
+    checkAuth();
+  }, [params.id, router, supabase]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,7 +68,7 @@ export default function EditPost({ params: paramsPromise }) {
     }
   };
 
-  if (loadingData) return <p>Loading...</p>;
+  if (loadingData || authChecking) return <p>Loading...</p>;
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
