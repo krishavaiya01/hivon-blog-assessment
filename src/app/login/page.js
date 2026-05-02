@@ -19,13 +19,16 @@ export default function Login() {
     let result;
     if (isRegister) {
       result = await supabase.auth.signUp({ email, password });
-      // In a real app we'd automatically add them to Users table or use a DB trigger.
-      // We will assume for this test project that users can be generated this way.
-      if (!result.error && result.data.user) {
-         await supabase.from('Users').insert([{ id: result.data.user.id, email, role: 'Author', name: email.split('@')[0] }]);
-      }
     } else {
       result = await supabase.auth.signInWithPassword({ email, password });
+    }
+
+    if (!result.error && result.data.user) {
+      // Ensure the user exists in the Users table with Author role
+      const { data: existingUser } = await supabase.from('Users').select('id').eq('id', result.data.user.id).single();
+      if (!existingUser) {
+        await supabase.from('Users').insert([{ id: result.data.user.id, email, role: 'Author', name: email.split('@')[0] }]);
+      }
     }
 
     if (result.error) {
