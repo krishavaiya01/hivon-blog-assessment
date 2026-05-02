@@ -22,7 +22,7 @@ export default function Login() {
       // In a real app we'd automatically add them to Users table or use a DB trigger.
       // We will assume for this test project that users can be generated this way.
       if (!result.error && result.data.user) {
-         await supabase.from('Users').insert([{ id: result.data.user.id, email, role: 'Viewer', name: email.split('@')[0] }]);
+         await supabase.from('Users').insert([{ id: result.data.user.id, email, role: 'Author', name: email.split('@')[0] }]);
       }
     } else {
       result = await supabase.auth.signInWithPassword({ email, password });
